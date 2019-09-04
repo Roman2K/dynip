@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+# Connect from a whitelisted IP
+export http_proxy=http://localhost:23128
+export https_proxy=$http_proxy
+
+{
+  date
+  bash -lc "
+    exec alerterr \
+      --name=dynip --on_err='/\\S/' --on_out='/updated/' -- \
+      flock /tmp/dynip.lock \
+        bundle exec ruby main.rb
+  "
+} 2>&1 | tee /tmp/dynip_cronjob.log

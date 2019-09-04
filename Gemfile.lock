@@ -1,0 +1,20 @@
+GIT
+  remote: https://github.com/Roman2K/utils-ruby.git
+  revision: 59d449b37300869265b584921b660a18aafdd884
+  specs:
+    utils-ruby (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.11.3)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  minitest
+  utils-ruby!
+
+BUNDLED WITH
+   2.0.2
