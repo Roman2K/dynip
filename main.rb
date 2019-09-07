@@ -109,9 +109,23 @@ end
 module PublicIP
   def self.get
     JSON.
-      parse(Net::HTTP.get(URI("https://api.myip.com"))).
+      parse(no_proxy { Net::HTTP.get(URI("https://api.myip.com")) }).
       fetch("ip").
       tap { |s| valid_ipv4? s or raise "invalid public IPv4" }
+  end
+
+  PROXY_KEYS = %w( http_proxy https_proxy ).flat_map { |k|
+    %i( upcase downcase ).map { |c| k.public_send c }
+  }
+
+  def self.no_proxy
+    old = {}
+    PROXY_KEYS.each { |k| old[k], ENV[k] = ENV[k], nil }
+    begin
+      yield
+    ensure
+      old.each { |k,v| ENV[k] = v }
+    end
   end
 
   def self.valid_ipv4?(s)
