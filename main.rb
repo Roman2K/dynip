@@ -2,6 +2,7 @@ require 'net/http'
 require 'rexml/document'
 require 'resolv'
 require 'utils'
+require 'active_support/core_ext/hash/conversions'
 
 class Dynadot
   BASE_URI = URI("https://api.dynadot.com/api3.xml").freeze
@@ -22,6 +23,20 @@ class Dynadot
       )
       h.update opts
     })
+  end
+
+  def domain_info(domain)
+    request(build_args("domain_info") { |h|
+      h["domain"] = domain
+    })
+  end
+
+  def domain_info_dns(domain)
+    ActiveSupport::XMLConverter.new(domain_info domain).to_h.
+      fetch("DomainInfoResponse").
+      fetch("DomainInfoContent").
+      fetch("Domain").
+      fetch("NameServerSettings")
   end
 
   private def index_args(arr, keys)
@@ -72,6 +87,7 @@ class Dynadot
     if exc = Result.new(xml).exception
       raise exc
     end
+    xml
   end
 
   class Result < Struct.new :ok, :status, :error, keyword_init: true
@@ -88,16 +104,22 @@ class Dynadot
       #     </SetDnsHeader>
       #   </SetDnsResponse>
       #
+      # TODO: use ActiveSupport::XMLConverter
+      #
       h = Hash[REXML::Document.new(xml).yield_self { |doc|
         hd = doc.root.children.find { |e|
           REXML::Element === e && e.name =~ /Header$/
         } or raise InvalidXMLError
         hd.children.grep(REXML::Element).map { |e| [e.name, e.text] }
       }]
-      super \
-        ok: h.fetch("SuccessCode") == "0",
-        status: h.fetch("Status"),
-        error: h["Error"]
+      begin
+        super \
+          ok: h.fetch("SuccessCode") == "0",
+          status: h.fetch("Status"),
+          error: h["Error"]
+      rescue KeyError
+        raise "#{$!}: invalid XML: #{h.inspect}"
+      end
     end
 
     def exception
@@ -157,7 +179,22 @@ module SubdomainUpdate
       log.info "DNS record already up to date"
       return
     end
-    log.info "DNS record out of date, updating"
+    log.info "DNS record out of date, checking DNS settings"
+
+    if dynadot.domain_info_dns(domain).
+      fetch("SubDomains").
+      fetch("SubDomainRecord").
+      yield_self { |r| Array === r ? r : [r] }.
+      any? { |r|
+        r.fetch("Subhost") == sub \
+          && r.fetch("RecordType") == "A" \
+          && r.fetch("Value") == ip
+      }
+    then
+      log.info "DNS setting already up to date"
+      return
+    end
+    log.info "DNS setting out of date, updating"
 
     dns_args = dns_args.merge \
       subdomains: (dns_args[:subdomains] || []).
