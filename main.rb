@@ -161,46 +161,50 @@ module PublicIP
 end
 
 module SubdomainUpdate
-  def self.update(sub, domain, dns_args, dynadot:, log:)
+  def self.update(subs, domain, dns_args, dynadot:, log:)
     ip = log.debug "getting public IP" do
       PublicIP.get
     end
     log[ip: ip].info "got public IP"
 
-    sub_fqdn = "#{sub}.#{domain}"
-    current = log.debug "getting current DNS value" do
-      Resolv::DNS.new.getaddress(sub_fqdn).to_s
-    rescue Resolv::ResolvError
-      nil
-    end
-    log[sub: sub_fqdn, current: current.inspect].info "got current DNS value"
+    current = subs.map { |sub|
+      Thread.new("#{sub}.#{domain}") do |fqdn|
+        Thread.abort_on_exception = true
+        sub_log = log[sub: fqdn]
+        sub_log.debug("getting current DNS value") {
+          begin
+            Resolv::DNS.new.getaddress(fqdn).to_s
+          rescue Resolv::ResolvError
+            nil
+          end
+        }.tap { |val|
+          sub_log[current: val.inspect].info "got current DNS value"
+        }
+      end
+    }.map(&:value).uniq
 
-    if current == ip
+    if current == [ip]
       log.info "DNS record already up to date"
       return
     end
-    log.info "DNS record out of date, checking DNS settings"
+    log[current: current].info "DNS record out of date, checking DNS settings"
 
-    if dynadot.domain_info_dns(domain).
+    expected = subs.map { |name| [name, "A", ip] }
+    actual = dynadot.domain_info_dns(domain).
       fetch("SubDomains").
       fetch("SubDomainRecord").
       yield_self { |r| Array === r ? r : [r] }.
-      any? { |r|
-        r.fetch("Subhost") == sub \
-          && r.fetch("RecordType") == "A" \
-          && r.fetch("Value") == ip
-      }
-    then
+      map { |r| r.values_at "Subhost", "RecordType", "Value" }
+
+    if (expected - actual).empty?
       log.info "DNS setting already up to date"
       return
     end
-    log.info "DNS setting out of date, updating"
+    log[expected: expected, actual: actual].
+      info "DNS setting out of date, updating"
 
     dns_args = dns_args.merge \
-      subdomains: (dns_args[:subdomains] || []).
-        reject { |name, typ| name == sub && typ == "A" } + [
-          [sub, "A", ip]
-        ]
+      subdomains: (dns_args[:subdomains] || []) | expected
 
     dynadot.set_dns2 domain: domain, **dns_args
     log.info "DNS record updated"
@@ -216,7 +220,7 @@ if $0 == __FILE__
     dry_run: dry_run,
     log: log["Dynadot"]
 
-  SubdomainUpdate.update "home", "romanlenegrate.net", {
+  SubdomainUpdate.update %w[home *.home], "romanlenegrate.net", {
     main_records: [
       ["A", "185.199.108.153"],
       ["MX", "aspmx.l.google.com", 1],
