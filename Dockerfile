@@ -1,5 +1,5 @@
 # --- Build image
-FROM ruby:2.5.5-alpine3.10 as builder
+FROM ruby:2.5.7-alpine3.10 as builder
 
 # bundle install deps
 RUN apk add --update ca-certificates git build-base openssl-dev
@@ -10,7 +10,7 @@ COPY . /app
 RUN cd /app && bundle
 
 # --- Runtime image
-FROM ruby:2.5.5-alpine3.10
+FROM ruby:2.5.7-alpine3.10
 
 COPY --from=builder /app /app
 COPY --from=builder /usr/local/bundle /usr/local/bundle
