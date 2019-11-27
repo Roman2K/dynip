@@ -161,7 +161,7 @@ module PublicIP
 end
 
 module SubdomainUpdate
-  def self.update(subs, domain, dns_args, dynadot:, log:)
+  def self.update(subs, domain, dns_args, force: false, dynadot:, log:)
     ip = log.debug "getting public IP" do
       PublicIP.get
     end
@@ -185,7 +185,7 @@ module SubdomainUpdate
 
     if current == [ip]
       log.info "DNS record already up to date"
-      return
+      if force then log.info "forcing update anyway" else return end
     end
     log[current: current].info "DNS record out of date, checking DNS settings"
 
@@ -198,7 +198,7 @@ module SubdomainUpdate
 
     if (expected - actual).empty?
       log.info "DNS setting already up to date"
-      return
+      if force then log.info "forcing update anyway" else return end
     end
     log[expected: expected, actual: actual].
       info "DNS setting out of date, updating"
@@ -212,10 +212,14 @@ module SubdomainUpdate
 end
 
 if $0 == __FILE__
-  dry_run = ARGV.delete "--dry_run"
-  ARGV.empty? or raise "usage: #{File.basename $0} [--dry_run]"
+  flags = %w[--dry_run --force]
+  dry_run, force = flags.map { |arg| !!ARGV.delete(arg) }
+  ARGV.empty? or raise "usage: #{File.basename $0} " \
+    + flags.map { |f| "[#{f}]" }.join(" ")
 
   log = Utils::Log.new $stdout
+  log[dry_run: dry_run, force: force].info "starting"
+
   dynadot = Dynadot.new File.read("api_key").strip,
     dry_run: dry_run,
     log: log["Dynadot"]
@@ -231,10 +235,13 @@ if $0 == __FILE__
       ["A", "185.199.109.153"],
       ["A", "185.199.110.153"],
       ["A", "185.199.111.153"],
+      ["TXT",
+       "keybase-site-verification=H9GOkctR0zCp7vVnzdcbiUuWdyBEUjvfKSEugQENf8g"],
     ],
     ttl: 3600,
   }, {
     dynadot: dynadot,
+    force: force,
     log: log,
   }
 end
