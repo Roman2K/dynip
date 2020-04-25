@@ -239,7 +239,7 @@ if $0 == __FILE__
        "keybase-site-verification=H9GOkctR0zCp7vVnzdcbiUuWdyBEUjvfKSEugQENf8g"],
     ],
     ttl: 3600,
-  }, {
+  }, **{
     dynadot: dynadot,
     force: force,
     log: log,

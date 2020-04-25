@@ -1,26 +1,26 @@
 GIT
   remote: https://github.com/Roman2K/utils-ruby.git
-  revision: 59d449b37300869265b584921b660a18aafdd884
+  revision: f7407fea5ae76e10c96b7e7d92bd122600d6cb8d
   specs:
     utils-ruby (0.1.0)
 
 GEM
   remote: https://rubygems.org/
   specs:
-    activesupport (6.0.0)
+    activesupport (6.0.2.2)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (>= 0.7, < 2)
       minitest (~> 5.1)
       tzinfo (~> 1.1)
-      zeitwerk (~> 2.1, >= 2.1.8)
-    concurrent-ruby (1.1.5)
-    i18n (1.6.0)
+      zeitwerk (~> 2.2)
+    concurrent-ruby (1.1.6)
+    i18n (1.8.2)
       concurrent-ruby (~> 1.0)
-    minitest (5.11.3)
+    minitest (5.14.0)
     thread_safe (0.3.6)
-    tzinfo (1.2.5)
+    tzinfo (1.2.7)
       thread_safe (~> 0.1)
-    zeitwerk (2.1.10)
+    zeitwerk (2.3.0)
 
 PLATFORMS
   ruby
@@ -31,4 +31,4 @@ DEPENDENCIES
   utils-ruby!
 
 BUNDLED WITH
-   2.0.2
+   2.1.4
